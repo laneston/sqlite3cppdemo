@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 project(SimpleProject VERSION 1.0.0 LANGUAGES CXX)
 
 # 设置 C++ 标准
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 设置编译类型
@@ -24,31 +24,30 @@ include_directories(
 
 # ========== 查找和链接动态库 ==========
 
-# 设置动态库搜索路径
+# 设置动态库搜索路径（优先使用项目内交叉编译好的库）
 set(LIB_SEARCH_PATHS
-    ${CMAKE_SOURCE_DIR}/lib          # 项目内的库
-    /usr/lib/x86_64-linux-gnu        # Ubuntu 系统库目录
-    /usr/local/lib                   # 用户安装的库
+    ${CMAKE_SOURCE_DIR}/lib          # 项目内的库（已交叉编译）
 )
 
-# 方法1：使用 find_library 查找动态库
-# 这里以 jsoncpp 为例，你可以替换为需要的库名
-find_library(SQLite3 
-    NAMES sqlite3
+# 查找 mosquitto 库
+find_library(Mosquitto
+    NAMES mosquitto
     PATHS ${LIB_SEARCH_PATHS}
+    NO_CMAKE_SYSTEM_PATH            # 禁止搜索系统路径，避免误用主机库
 )
 
-if(SQLite3)
-    message(STATUS "找到 sqlite3 库: ${SQLite3}")
-else()
-    message(WARNING "未找到 sqlite3 库，某些功能可能不可用")
+# 如果 find_library 未找到，尝试直接指定文件路径（处理符号链接可能引起的问题）
+if(NOT Mosquitto)
+    set(LIB_PATH ${CMAKE_SOURCE_DIR}/lib/libmosquitto.so)
+    if(EXISTS ${LIB_PATH})
+        set(Mosquitto ${LIB_PATH})
+        message(STATUS "使用直接路径库: ${Mosquitto}")
+    else()
+        message(FATAL_ERROR "未找到 mosquitto 库，请确保 ${CMAKE_SOURCE_DIR}/lib 中包含交叉编译好的 libmosquitto.so")
+    endif()
 endif()
 
-# 方法2：直接指定项目内的动态库（如果知道确切路径）
-set(MY_CUSTOM_LIB ${CMAKE_SOURCE_DIR}/lib/libch347.so)
-if(EXISTS ${MY_CUSTOM_LIB})
-    message(STATUS "使用项目内库: ${MY_CUSTOM_LIB}")
-endif()
+message(STATUS "找到 mosquitto 库: ${Mosquitto}")
 
 # ========== 添加源文件 ==========
 
@@ -68,15 +67,11 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # ========== 链接库文件 ==========
 
-# 如果有找到的动态库，链接它们
-if(SQLite3)
-    target_link_libraries(${PROJECT_NAME} ${SQLite3})
-elseif(EXISTS ${MY_CUSTOM_LIB})
-    target_link_libraries(${PROJECT_NAME} ${MY_CUSTOM_LIB})
-endif()
+# 链接 mosquitto 库
+target_link_libraries(${PROJECT_NAME} ${Mosquitto})
 
-# 添加其他常用库
-target_link_libraries(${PROJECT_NAME} 
+# 添加其他常用库（交叉编译工具链需提供 pthread 和 dl）
+target_link_libraries(${PROJECT_NAME}
     pthread      # POSIX 线程库
     dl           # 动态加载库
 )
@@ -84,7 +79,7 @@ target_link_libraries(${PROJECT_NAME}
 # 设置可执行文件的属性
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    OUTPUT_NAME "sqlite3demo"
+    OUTPUT_NAME "database"
 )
 
 # 安装规则（可选）
