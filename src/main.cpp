@@ -129,7 +129,7 @@ int main()
   }
   LOG_INFO("Application started.");
 
-  DataBaseManager dbManager(2, 10); // 最多2个通道，每个数据库最多10张表
+  DataBaseManager dbManager(2, 10, "/root/data"); // 最多2个通道，每个数据库最多10张表
 
   // 创建消息队列（容量 100）
   MessageQueue mq(100);
