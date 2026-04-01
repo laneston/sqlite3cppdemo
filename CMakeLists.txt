@@ -49,6 +49,26 @@ endif()
 
 message(STATUS "找到 mosquitto 库: ${Mosquitto}")
 
+
+# 查找 sqlite3 库
+find_library(SQLite3
+    NAMES sqlite3
+    PATHS ${LIB_SEARCH_PATHS}
+    NO_CMAKE_SYSTEM_PATH            # 禁止搜索系统路径，避免误用主机库
+)
+
+# 如果 find_library 未找到，尝试直接指定文件路径（处理符号链接可能引起的问题）
+if(NOT SQLite3)
+    set(LIB_PATH ${CMAKE_SOURCE_DIR}/lib/libsqlite3.so)
+    if(EXISTS ${LIB_PATH})
+        set(SQLite3 ${LIB_PATH})
+        message(STATUS "使用直接路径库: ${SQLite3}")
+    else()
+        message(FATAL_ERROR "未找到 sqlite3 库，请确保 ${CMAKE_SOURCE_DIR}/lib 中包含交叉编译好的 libsqlite3.so")
+    endif()
+endif()
+
+message(STATUS "找到 sqlite3 库: ${SQLite3}")
 # ========== 添加源文件 ==========
 
 # 收集所有源代码文件
@@ -69,6 +89,8 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # 链接 mosquitto 库
 target_link_libraries(${PROJECT_NAME} ${Mosquitto})
+# 链接 mosquitto 库
+target_link_libraries(${PROJECT_NAME} ${SQLite3})
 
 # 添加其他常用库（交叉编译工具链需提供 pthread 和 dl）
 target_link_libraries(${PROJECT_NAME}

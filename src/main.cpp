@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include "dbManager.h"
 #include "json.hpp" // 使用 nlohmann/json 库
 #include "log_manager.hpp"
 #include "modbus_message_queue.h"
@@ -128,6 +129,8 @@ int main()
   }
   LOG_INFO("Application started.");
 
+  DataBaseManager dbManager(2, 10); // 最多2个通道，每个数据库最多10张表
+
   // 创建消息队列（容量 100）
   MessageQueue mq(100);
 
@@ -165,7 +168,7 @@ int main()
   std::thread mqtt_thread([&client]() { client.run(); });
 
   // 定时读取线程（每 60 秒清空队列并打印）
-  std::thread reader_thread([&mq]() {
+  std::thread reader_thread([&mq, &dbManager]() {
     while (g_running) {
       std::this_thread::sleep_for(std::chrono::seconds(60));
       if (!g_running) break;
@@ -174,6 +177,8 @@ int main()
       LOG_INFO("Queue size before reading: " + std::to_string(count));
       ModbusMasterMsg msg;
       while (mq.read(msg)) {
+        // 写入数据库
+        if (!dbManager.writeMessage(msg)) { LOG_ERROR("DB write failed for msg id=" + std::to_string(msg.id)); }
         std::ostringstream oss;
         oss << "Read msg id=" << msg.id << ", channel=" << msg.channel << ", pdu_addr=" << msg.pdu_addr
             << ", pdu_func=" << msg.pdu_func << ", pdu_data=" << msg.pdu_data << ", timestamp=" << msg.timestamp
