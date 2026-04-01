@@ -31,4 +31,8 @@ make
 
 
 
-
+## 需求++
+根据上传的 modbus_message_queue.h 文件对 modbus_message_queue.cpp 文件内容进行修改，并对main.cpp文件进行修改以适应新的功能调整，具体需求如下：
+1. 在 modbus_message_queue.h 文件的寄存器映射条目 RegisterItem 中，变量 address 存储的是  modbusMasterMsg.json 中的 数组对象 register_map 里的寄存器地址键名，譬如 "16"、"17"、"18"...
+2. 在 modbus_message_queue.h 文件的寄存器映射条目 RegisterItem 中，变量 map_addr 存储的是 modbusMasterMsg.json 中的 数组对象 register_map 里的寄存器地址键值，譬如 0、1、2...
+3. 在 modbus_message_queue.h 文件的寄存器映射条目 RegisterItem 中，变量 value 存储的是 modbusMasterMsg.json 中的 数组对象 register_map 里的寄存器值，譬如 220、456...

@@ -17,7 +17,8 @@ struct ModbusMasterMsg {
 
   // 寄存器映射条目
   struct RegisterItem {
-    int address;             // 寄存器地址（如16,17...）
+    int address;             // 映射寄存器地址（如16,17...）
+    int map_addr;            // 原寄存器地址（如0,1...)
     int value;               // 寄存器值
     std::string description; // 描述信息
   };
