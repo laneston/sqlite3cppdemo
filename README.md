@@ -102,4 +102,10 @@ make
 5. 如果接收到的消息主题内容不包含以上内容，则不做处理；
 
 
+## 重启落盘功能
 
+修改 main.cpp 文件，在保留原有功能的前提下，增加 reboot 功能的 MQTT 消息的交互，具体需求如下：
+1. 订阅 httpserver 发送的请求报文，主题是 httpserver/database/request/reboot ，如果是，则判定 payload 格式是否为  "{"token":123456}", "token" 值不需要固定，如果不是，则忽略此次请求操作；
+2. 当 MQTT 接收消息的主题是 httpserver/database/request/reboot ，且 payload 内容格式正确 ，则记录 "token" 值（整型数值）;
+3. 记录 "token" 值后，需要立即唤醒 定时读取线程 reader_thread ,确保消息队列 MessageQueue 中的数据已入库并且落盘保存；
+4. 完成步骤 3 的操作后，返回 MQTT 消息，消息主题为 database/httpserver/response/reboot ，payload 内容为 "{"token":123456,"status":"ready"}" ，"token" 值必须与请求报文中的 "token" 值一致；
