@@ -90,3 +90,16 @@ make
 2. 程序编译语言版本为C++11，运行环境为 aarch32 linux；
 3. 在 main.cpp 文件中的 main 函数进行数据库初始化操作；
 4. 在 main.cpp 文件 main 函数 的定时读取线程中，加入数据库写入函数，将从 ModbusMasterMsg 消息队列中读取的内容写入到 SQLite 数据库；
+
+
+## 初始化需求
+
+修改 main.cpp 文件，在保留原有功能的前提下，实现 keepAlive 功能的 MQTT 消息的交互，具体需求如下：
+1. 订阅 modbusMaster 发送的请求报文，主题是 modbusMaster/database/request/keepAlive；
+2. 判定 MQTT 接收消息的主题是否为 modbusMaster/database/request/keepAlive ，如果是，则判定 payload 内容是否为  "{"token":123456}" ,如果不是，则忽略此次请求操作；
+3. 当 MQTT 接收消息的主题是 modbusMaster/database/request/keepAlive ，且 payload 内容是 "{"token":123456}" ，则记录 "token" 值（整型数值），并返回 MQTT 消息，消息主题为 database/modbusMaster/response/keepAlive ，payload 内容为 "{"token":123456,"status":"ready"}" ，"token" 值必须与请求报文中的 "token" 值一致；
+4. 判定 MQTT 接收消息的主题是否为 "modbusMaster/database/data" ，如果是，判定报文格式是否合法后，存入 MessageQueue 消息队列中；
+5. 如果接收到的消息主题内容不包含以上内容，则不做处理；
+
+
+

@@ -141,28 +141,71 @@ int main()
 
   client.setConnectCallback([]() { LOG_INFO("Connected to MQTT broker."); });
 
-  // 消息回调：解析并写入队列
-  client.setMessageCallback([&mq](const std::string& topic, const std::string& payload) {
-    LOG_DEBUG("Received message on topic: " + topic);
-    try {
-      json j = json::parse(payload);
-      ModbusMasterMsg msg;
-      if (parseModbusMsg(j, msg)) {
-        mq.write(msg);
-        LOG_INFO("Enqueued msg id=" + std::to_string(msg.id)
-                 + ", registers=" + std::to_string(msg.register_map.size()));
-      } else {
-        LOG_WARN("Invalid message format, discarded.");
+  // 消息回调：根据主题分别处理
+  client.setMessageCallback([&mq, &client](const std::string& topic, const std::string& payload) {
+    LOG_INFO("Received message on topic: " + topic);
+    LOG_INFO("Received message payload: " + payload);
+
+    // 处理 keepAlive 请求
+    if (topic == "modbusMaster/database/request/keepAlive") {
+      try {
+        json j = json::parse(payload);
+        if (j.contains("token") && j["token"].is_number_integer()) {
+          int token = j["token"].get<int>();
+          // if (token == 123456) {
+          LOG_INFO("Valid keepAlive request with token=" + std::to_string(token));
+          // 构造响应
+          json response;
+          response["token"] = token;
+          response["status"] = "ready";
+          std::string response_str = response.dump();
+          // 发布响应
+          if (client.publish("database/modbusMaster/response/keepAlive", response_str, 0, false)) {
+            LOG_INFO("Published keepAlive response: " + response_str);
+          } else {
+            LOG_ERROR("Failed to publish keepAlive response");
+          }
+          // } else {
+          //   LOG_WARN("Invalid token in keepAlive request, expected 123456, got " + std::to_string(token));
+          // }
+        } else {
+          LOG_WARN("KeepAlive request missing 'token' field or token not integer");
+        }
+      } catch (const json::parse_error& e) {
+        LOG_WARN("Failed to parse keepAlive payload: " + std::string(e.what()));
+      } catch (const std::exception& e) {
+        LOG_WARN("Unexpected error in keepAlive handler: " + std::string(e.what()));
       }
-    } catch (const json::parse_error& e) {
-      LOG_WARN("JSON parse error: " + std::string(e.what()));
-    } catch (const std::exception& e) {
-      LOG_WARN("Unexpected error: " + std::string(e.what()));
+      return; // 处理完 keepAlive 后不再继续
     }
+
+    // 处理数据消息
+    if (topic == "modbusMaster/database/data") {
+      try {
+        json j = json::parse(payload);
+        ModbusMasterMsg msg;
+        if (parseModbusMsg(j, msg)) {
+          mq.write(msg);
+          LOG_INFO("Enqueued msg id=" + std::to_string(msg.id)
+                   + ", registers=" + std::to_string(msg.register_map.size()));
+        } else {
+          LOG_WARN("Invalid message format, discarded.");
+        }
+      } catch (const json::parse_error& e) {
+        LOG_WARN("JSON parse error: " + std::string(e.what()));
+      } catch (const std::exception& e) {
+        LOG_WARN("Unexpected error: " + std::string(e.what()));
+      }
+      return;
+    }
+
+    // 其他主题不做处理
+    LOG_INFO("Ignored message on topic: " + topic);
   });
 
   if (!client.connect()) { LOG_ERROR("MQTT initial connection failed, will retry in run loop."); }
   client.subscribe("modbusMaster/database/data", 0);
+  client.subscribe("modbusMaster/database/request/keepAlive", 0); // 订阅 keepAlive 主题
 
   // MQTT 运行线程
   std::thread mqtt_thread([&client]() { client.run(); });
