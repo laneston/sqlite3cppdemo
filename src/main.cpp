@@ -227,7 +227,7 @@ int main()
     }
 
     // 处理数据消息
-    if (topic == "modbusMaster/database/data") {
+    if (topic == "modbusMaster/database/report/data") {
       try {
         json j = json::parse(payload);
         ModbusMasterMsg msg;
@@ -251,7 +251,7 @@ int main()
   });
 
   if (!client.connect()) { LOG_ERROR("MQTT initial connection failed, will retry in run loop."); }
-  client.subscribe("modbusMaster/database/data", 0);
+  client.subscribe("modbusMaster/database/report/data", 0);
   client.subscribe("modbusMaster/database/request/keepAlive", 0);
   client.subscribe("httpserver/database/request/reboot", 0); // 订阅 reboot 主题
 
